@@ -33,8 +33,8 @@ def run_demo():
     print("\nDisplaying diagrams...")
     # NOTE: In some environments, plotting might be blocking. 
     # Calling plot functions here.
-    analyzer.plot_sfd()
-    analyzer.plot_bmd()
+    # New combined visualization: SFD and BMD side-by-side
+    analyzer.plot_results()
 
     # -------------------------------
     # Example 2: Trigonometric Load
@@ -55,11 +55,12 @@ def run_demo():
     analyzer2.solve()
 
     print("\nResults:")
+    analyzer2.show_reactions()
     analyzer2.pretty_results()
+    analyzer2.interpret_results()
 
     print("\nDisplaying diagrams...")
-    analyzer2.plot_sfd()
-    analyzer2.plot_bmd()
+    analyzer2.plot_results()
 
     # -------------------------------
     # Example 3: Partial Distributed Load
@@ -81,11 +82,12 @@ def run_demo():
     analyzer3.solve()
 
     print("\nResults:")
+    analyzer3.show_reactions()
     analyzer3.pretty_results()
+    analyzer3.interpret_results()
 
     print("\nDisplaying diagrams...")
-    analyzer3.plot_sfd()
-    analyzer3.plot_bmd()
+    analyzer3.plot_results()
     
     # -------------------------------
     # Example 4: Multiple Loads
@@ -108,11 +110,12 @@ def run_demo():
     analyzer4.solve()
 
     print("\nResults:")
+    analyzer4.show_reactions()
     analyzer4.pretty_results()
+    analyzer4.interpret_results()
 
     print("\nDisplaying diagrams...")
-    analyzer4.plot_sfd()
-    analyzer4.plot_bmd()
+    analyzer4.plot_results()
 
     print("\n=== Demo Completed Successfully ===")
 

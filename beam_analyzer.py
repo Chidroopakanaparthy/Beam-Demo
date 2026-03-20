@@ -123,6 +123,38 @@ class BeamAnalyzer:
         bm = self.get_bending_moment()
         self._plot_graph(bm, "Bending Moment Diagram (BMD)", "Bending Moment (M)")
 
+    def plot_results(self):
+        # Optimized visualization: Side-by-side SFD and BMD
+        sf = self.get_shear_force()
+        bm = self.get_bending_moment()
+        x_vals = np.linspace(0, float(self.length), 500)
+        
+        y_sf = [float(sf.subs(self.x, val).evalf()) if hasattr(sf, 'subs') else 0.0 for val in x_vals]
+        y_bm = [float(bm.subs(self.x, val).evalf()) if hasattr(bm, 'subs') else 0.0 for val in x_vals]
+
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5))
+        
+        # SFD
+        ax1.plot(x_vals, y_sf, color='blue', linewidth=2)
+        ax1.fill_between(x_vals, y_sf, color='blue', alpha=0.1)
+        ax1.axhline(0, color='black', linewidth=1)
+        ax1.set_title("Shear Force Diagram (SFD)", fontsize=12, fontweight='bold')
+        ax1.set_xlabel("Position (x)")
+        ax1.set_ylabel("Shear Force (V)")
+        ax1.grid(True, linestyle='--', alpha=0.6)
+
+        # BMD
+        ax2.plot(x_vals, y_bm, color='red', linewidth=2)
+        ax2.fill_between(x_vals, y_bm, color='red', alpha=0.1)
+        ax2.axhline(0, color='black', linewidth=1)
+        ax2.set_title("Bending Moment Diagram (BMD)", fontsize=12, fontweight='bold')
+        ax2.set_xlabel("Position (x)")
+        ax2.set_ylabel("Bending Moment (M)")
+        ax2.grid(True, linestyle='--', alpha=0.6)
+
+        plt.tight_layout()
+        plt.show()
+
     def _plot_graph(self, expr, title, ylabel):
         x_vals = np.linspace(0, float(self.length), 500)
         y_vals = []
