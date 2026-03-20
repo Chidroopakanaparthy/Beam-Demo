@@ -123,8 +123,8 @@ class BeamAnalyzer:
         bm = self.get_bending_moment()
         self._plot_graph(bm, "Bending Moment Diagram (BMD)", "Bending Moment (M)")
 
-    def plot_results(self):
-        # Optimized visualization: Side-by-side SFD and BMD
+    def plot_results(self, title="Beam Analysis Results"):
+        # Optimized visualization: Side-by-side SFD and BMD with a main title
         sf = self.get_shear_force()
         bm = self.get_bending_moment()
         x_vals = np.linspace(0, float(self.length), 500)
@@ -132,7 +132,8 @@ class BeamAnalyzer:
         y_sf = [float(sf.subs(self.x, val).evalf()) if hasattr(sf, 'subs') else 0.0 for val in x_vals]
         y_bm = [float(bm.subs(self.x, val).evalf()) if hasattr(bm, 'subs') else 0.0 for val in x_vals]
 
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5))
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+        fig.suptitle(title, fontsize=16, fontweight='bold')
         
         # SFD
         ax1.plot(x_vals, y_sf, color='blue', linewidth=2)
