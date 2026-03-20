@@ -123,7 +123,7 @@ class BeamAnalyzer:
         bm = self.get_bending_moment()
         self._plot_graph(bm, "Bending Moment Diagram (BMD)", "Bending Moment (M)")
 
-    def plot_results(self, title="Beam Analysis Results"):
+    def plot_results(self, title="Beam Analysis Results", save_path=None):
         # Optimized visualization: Side-by-side SFD and BMD with a main title
         sf = self.get_shear_force()
         bm = self.get_bending_moment()
@@ -154,7 +154,11 @@ class BeamAnalyzer:
         ax2.grid(True, linestyle='--', alpha=0.6)
 
         plt.tight_layout()
-        plt.show()
+        if save_path:
+            plt.savefig(save_path)
+            print(f"Plot saved to {save_path}")
+        else:
+            plt.show()
 
     def _plot_graph(self, expr, title, ylabel):
         x_vals = np.linspace(0, float(self.length), 500)
