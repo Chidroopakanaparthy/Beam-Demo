@@ -5,12 +5,12 @@ BeamAnalyzer is a high-performance Python framework designed for the symbolic an
 ## Features 
 
 - **Exact Symbolic Engine**: Utilizes SymPy to generate closed-form expressions for Reaction Forces, Shear Force (SFD), and Bending Moment (BMD).
-- **Arbitrary Loading Profiles**: Native support for complex load functions, including:
-          Polynomials: $w(x) = ax^n + bx^{n-1} \dots
-          Trigonometric: $w(x) = \sin(k \cdot x)
-          Piecewise/Partial: Discontinuous loads defined over specific intervals.
+- **Arbitrary Loading Profiles**: Native support for complex load functions, including:<br>
+         - Polynomials: w(x) = ax^n + bx^{n-1} ... <br>
+         - Trigonometric: w(x) = sin(k . x) <br>
+         - Piecewise/Partial: Discontinuous loads defined over specific intervals.<br>
 - **Side-by-Side Visualization**: High-quality plots for Shear Force Diagrams (SFD) and Bending Moment Diagrams (BMD).
-- **Optimized Poly-Solverr**: Custom implementation for decomposing polynomial loads into Singularity Functions, drastically reducing computation time for high-degree distributions.
+- **Optimized Poly-Solver**: Custom implementation for decomposing polynomial loads into Singularity Functions, drastically reducing computation time for high-degree distributions.
 - **Engineering Insights**: Automated interpretation layer that identifies critical points (max/min moments) and inflection points.
   
 ## Repository Structure 
@@ -65,7 +65,7 @@ The core logic utilizes the Singularity Function method from sympy.physics.conti
 Traditional numerical solvers often suffer from rounding errors in complex beam configurations. BeamAnalyzer bypasses this by maintaining symbolic integrity throughout the integration process. 
 
 # Optimization Note
-In SymPy 1.14+, Symbolic integration of hight-degree polynomials can be computationally expensive. This prototype implements a "Poly-Optimization" Layer that pre-processes loads into optiized singularoty terms before they hit the solver.
+In SymPy 1.14+, Symbolic integration of hight-degree polynomials can be computationally expensive. This prototype implements a "Poly-Optimization" Layer that pre-processes loads into optiized singularity terms before they hit the solver.
 
 ---
 Developed as a clean engineering prototype.
