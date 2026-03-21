@@ -1,16 +1,19 @@
-# Beam Analyzer 🚀
+# Beam Analyzer 
 
-A powerful Python prototype for **Symbolic Beam Analysis** using SymPy. This tool allows engineers and students to analyze beams with arbitrary symbolic distributed loads, point loads, and multiple supports.
+BeamAnalyzer is a high-performance Python framework designed for the symbolic analysis of structural members. By leveraging the SymPy computer algebra system, it provides exact analytical solutions for shear, moment, and deflection, even under complex transcendental or polynomial loading conditions.
 
-## Features ✨
+## Features 
 
-- **Symbolic Distributed Loads**: Supports polynomial ($x^2$), trigonometric ($\sin(x)$), and partial loads.
-- **Reaction Solving**: Automatically solves for reaction forces at supports.
+- **Exact Symbolic Engine**: Utilizes SymPy to generate closed-form expressions for Reaction Forces, Shear Force (SFD), and Bending Moment (BMD).
+- **Arbitrary Loading Profiles**: Native support for complex load functions, including:
+          Polynomials: $w(x) = ax^n + bx^{n-1} \dots
+          Trigonometric: $w(x) = \sin(k \cdot x)
+          Piecewise/Partial: Discontinuous loads defined over specific intervals.
 - **Side-by-Side Visualization**: High-quality plots for Shear Force Diagrams (SFD) and Bending Moment Diagrams (BMD).
-- **Interpretation Layer**: Provides engineering context for the results.
-- **Poly-Optimization**: Optimized handling of polynomial loads for fast symbolic integration.
-
-## Repository Structure 📂
+- **Optimized Poly-Solverr**: Custom implementation for decomposing polynomial loads into Singularity Functions, drastically reducing computation time for high-degree distributions.
+- **Engineering Insights**: Automated interpretation layer that identifies critical points (max/min moments) and inflection points.
+  
+## Repository Structure 
 
 ```text
 .
@@ -37,7 +40,7 @@ A powerful Python prototype for **Symbolic Beam Analysis** using SymPy. This too
    python main.py
    ```
 
-## Examples & Results 📊
+## Examples & Results 
 
 ### Example 1: Polynomial Distributed Load
 Load: $w(x) = x^2$ from 0 to 10.
@@ -55,9 +58,12 @@ Load: $w(x) = 2x$ from $x=2$ to $x=8$.
 Multiple distributed and point loads combined.
 ![Example 4](screenshots/example4.png)
 
-## Technical Implementation 🧠
+## Technical Implementation 
 
-The project uses `SingularityFunction` from `sympy.physics.continuum_mechanics` to represent loads. A key optimization is the automated decomposition of polynomial loads into pure singularity functions, which significantly speeds up the symbolic solver in SymPy 1.14.
+The core logic utilizes the Singularity Function method from sympy.physics.continuum_mechanics.
 
+Traditional numerical solvers often suffer from rounding errors in complex beam configurations. BeamAnalyzer bypasses this by maintaining symbolic integrity throughout the integration process.
+
+Optimization Note: In SymPy 1.14+, symbolic integration of high-degree polynomials can be computationally expensive. This prototype implements a "Poly-Optimization" layer that pre-processes loads into optimized singularity terms before they hit the solver.
 ---
 Developed as a clean engineering prototype.
