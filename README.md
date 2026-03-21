@@ -62,8 +62,10 @@ Multiple distributed and point loads combined.
 
 The core logic utilizes the Singularity Function method from sympy.physics.continuum_mechanics.
 
-Traditional numerical solvers often suffer from rounding errors in complex beam configurations. BeamAnalyzer bypasses this by maintaining symbolic integrity throughout the integration process.
+Traditional numerical solvers often suffer from rounding errors in complex beam configurations. BeamAnalyzer bypasses this by maintaining symbolic integrity throughout the integration process. 
 
-Optimization Note: In SymPy 1.14+, symbolic integration of high-degree polynomials can be computationally expensive. This prototype implements a "Poly-Optimization" layer that pre-processes loads into optimized singularity terms before they hit the solver.
+# Optimization Note
+In SymPy 1.14+, Symbolic integration of hight-degree polynomials can be computationally expensive. This prototype implements a "Poly-Optimization" Layer that pre-processes loads into optiized singularoty terms before they hit the solver.
+
 ---
 Developed as a clean engineering prototype.
