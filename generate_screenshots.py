@@ -1,6 +1,6 @@
 import sys
 import matplotlib
-matplotlib.use('Agg') # Non-interactive backend
+matplotlib.use('Agg') 
 sys.setrecursionlimit(20000)
 from beam_analyzer import BeamAnalyzer
 import os
@@ -8,21 +8,21 @@ import os
 def generate():
     os.makedirs("screenshots", exist_ok=True)
     
-    # Example 1
+    # Example 1: Polynomial Distributed Load
     analyzer1 = BeamAnalyzer(length=10)
     analyzer1.add_distributed_load("x**2", 0, 10)
     analyzer1.add_point_load(5, 4)
     analyzer1.solve()
     analyzer1.plot_results(title="Example 1: Polynomial Load (x^2)", save_path="screenshots/example1.png")
 
-    # Example 2
+    # Example 2: Trigonometric Load
     analyzer2 = BeamAnalyzer(length=10)
     analyzer2.add_distributed_load("sin(x)", 0, 10)
     analyzer2.add_point_load(3, 6)
     analyzer2.solve()
     analyzer2.plot_results(title="Example 2: Trigonometric Load (sin x)", save_path="screenshots/example2.png")
 
-    # Example 3
+    # Example 3: Partial Distributed Load
     analyzer3 = BeamAnalyzer(length=10)
     analyzer3.add_distributed_load("2*x", 2, 8)
     analyzer3.add_point_load(4, 5)

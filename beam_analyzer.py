@@ -1,4 +1,8 @@
-from sympy import symbols, sympify, Poly, SingularityFunction, simplify
+import sys
+# Standard recursion limit
+sys.setrecursionlimit(5000)
+
+from sympy import symbols, sympify, SingularityFunction, simplify, integrate, Piecewise, Add, Mul, piecewise_fold, solve as sympy_solve
 from sympy.physics.continuum_mechanics.beam import Beam
 import matplotlib.pyplot as plt
 import numpy as np
@@ -18,76 +22,77 @@ class BeamAnalyzer:
     def add_point_load(self, value, position):
         self.loads.append(("point", sympify(float(value)) if isinstance(value, (int, float)) else sympify(value, locals={'x': self.x}), position))
 
-    def _apply_distributed_poly(self, expr, start, end):
-        # Optimization: Decompose polynomial into pure singularity functions
-        # w(x) = sum c_i * (x-a)**i
-        from math import factorial
-        
-        # Apply at start
-        for i in range(Poly(expr, self.x).degree() + 1):
-            coeff = expr.diff(self.x, i).subs(self.x, start) / factorial(i)
-            if coeff != 0:
-                self.beam.apply_load(coeff, start, i)
-        
-        # At end, subtract the same polynomial intensity to 'cut it off'
-        # We need to subtract the intensity of the polynomial at x=end
-        # -expr(x) = sum d_i * (x-end)**i
-        for i in range(Poly(expr, self.x).degree() + 1):
-            coeff_end = (-expr).diff(self.x, i).subs(self.x, end) / factorial(i)
-            if coeff_end != 0:
-                self.beam.apply_load(coeff_end, end, i)
-
     def apply_loads(self):
+        # Clear any existing loads to avoid duplicates if solve() is called twice
+        self.beam._loads = [] 
         for load in self.loads:
             if load[0] == "dist":
                 _, expr, start, end = load
-                try:
-                    if expr.is_polynomial(self.x):
-                        self._apply_distributed_poly(expr, start, end)
-                    else:
-                        # Fallback for non-polynomials (like sin(x))
-                        # User's workaround is correct but slow for poly
-                        self.beam.apply_load(expr, start, 0)
-                        self.beam.apply_load(-expr, end, 0)
-                except:
-                    # Generic fallback
-                    self.beam.apply_load(expr, start, 0)
-                    self.beam.apply_load(-expr, end, 0)
-
+                self.beam.apply_load(expr, start, 0)
+                self.beam.apply_load(-expr, end, 0)
             elif load[0] == "point":
                 _, value, pos = load
                 self.beam.apply_load(value, pos, -1)
 
     def solve(self):
-        # Configuration known to be stable
-        r0 = self.beam.apply_support(0, 'pin')
-        rL = self.beam.apply_support(self.length, 'roller')
+        r0_sym = symbols('R_0')
+        rL_sym = symbols('R_L')
+        self.reaction_symbols = [r0_sym, rL_sym]
         
-        self.reaction_symbols = []
-        for r in [r0, rL]:
-            if isinstance(r, (list, tuple)):
-                self.reaction_symbols.extend(r)
-            else:
-                self.reaction_symbols.append(r)
+        # We'll calculate equilibrium using external loads from self.loads
+        # Standard convention: Downward loads are positive, reaction forces (upward) are negative in the load sum
+        # so: sum(external_loads) = R0 + RL
+        ext_force = 0
+        ext_moment = 0
+        
+        for load in self.loads:
+            if load[0] == "point":
+                _, val, pos = load
+                ext_force += val
+                ext_moment += val * pos
+            elif load[0] == "dist":
+                _, expr, start, end = load
+                ext_force += integrate(expr, (self.x, start, end))
+                ext_moment += integrate(self.x * expr, (self.x, start, end))
+        
+        # Equilibrium equations (sum of forces = 0, sum of moments at x=0 = 0)
+        # R0 + RL - ext_force = 0  => Upward R0, R1
+        # RL * L - ext_moment = 0 
+        eq1 = r0_sym + rL_sym - ext_force
+        eq2 = rL_sym * self.length - ext_moment
+        
+        sol = sympy_solve([eq1, eq2], self.reaction_symbols, dict=True)
+        
+        if sol:
+            self.reactions = sol[0]
+            # Apply reactions to the beam model
+            self.apply_loads()
+            # Note: We use negative sign for reactions in the beam model because upward is negative in apply_load
+            self.beam.apply_load(-self.reactions[r0_sym], 0, -1)
+            self.beam.apply_load(-self.reactions[rL_sym], self.length, -1)
+        else:
+            raise ValueError("Could not solve for reaction loads.")
 
-        self.apply_loads()
-
-        # Solve for reaction loads
-        import sys
-        old_limit = sys.getrecursionlimit()
-        sys.setrecursionlimit(50000)
-        try:
-            self.beam.solve_for_reaction_loads(*self.reaction_symbols)
-            # Upgrade 2: Store reaction loads
-            self.reactions = self.beam.reaction_loads
-        finally:
-            sys.setrecursionlimit(old_limit)
+    def _get_piecewise_integral(self, expr):
+        if expr == 0:
+            return 0
+        pw = piecewise_fold(expr.rewrite(Piecewise))
+        t = symbols('t')
+        integral = integrate(pw.subs(self.x, t), (t, 0, self.x))
+        return piecewise_fold(integral)
 
     def get_shear_force(self):
-        return self.beam.shear_force()
+        load = self.beam.load.subs(self.reactions)
+        # V(x) = -integrate(q)
+        # Wait, if upward reactions are applied as -R, and downward loads as q
+        # V'(x) = -load. So V = -integral(load)
+        shear = -self._get_piecewise_integral(load)
+        return shear
 
     def get_bending_moment(self):
-        return self.beam.bending_moment()
+        sf = self.get_shear_force()
+        moment = self._get_piecewise_integral(sf)
+        return moment
 
     def pretty_results(self):
         sf = self.get_shear_force()
@@ -99,7 +104,6 @@ class BeamAnalyzer:
         print(bm)
 
     def interpret_results(self):
-        # Upgrade 1: Interpretation Layer
         print("\n=== Interpretation ===")
         print("- Positive shear → upward force")
         print("- Negative shear → downward force")
@@ -107,9 +111,8 @@ class BeamAnalyzer:
         print("- Discontinuities indicate point loads/supports")
 
     def show_reactions(self):
-        # Upgrade 2: Reaction Force Output
         print("\n=== Reaction Forces ===")
-        if hasattr(self, 'reactions'):
+        if self.reactions:
             for key, val in self.reactions.items():
                 print(f"{key} = {val}")
         else:
@@ -123,35 +126,55 @@ class BeamAnalyzer:
         bm = self.get_bending_moment()
         self._plot_graph(bm, "Bending Moment Diagram (BMD)", "Bending Moment (M)")
 
+    def _plot_graph(self, expr, title, ylabel):
+        x_vals = np.linspace(0, float(self.length), 500)
+        from sympy import lambdify
+        try:
+            func = lambdify(self.x, expr, modules=['numpy', 'sympy'])
+            y_vals = [float(func(v)) for v in x_vals]
+        except:
+            y_vals = [float(expr.subs(self.x, v).evalf()) for v in x_vals]
+
+        plt.figure(figsize=(10, 5))
+        plt.plot(x_vals, y_vals, color='blue', linewidth=2)
+        plt.fill_between(x_vals, y_vals, color='blue', alpha=0.1)
+        plt.axhline(0, color='black', linewidth=1)
+        plt.title(title, fontsize=14, fontweight='bold')
+        plt.xlabel("Position (x)")
+        plt.ylabel(ylabel)
+        plt.grid(True)
+        plt.show()
+
     def plot_results(self, title="Beam Analysis Results", save_path=None):
-        # Optimized visualization: Side-by-side SFD and BMD with a main title
         sf = self.get_shear_force()
         bm = self.get_bending_moment()
         x_vals = np.linspace(0, float(self.length), 500)
         
-        y_sf = [float(sf.subs(self.x, val).evalf()) if hasattr(sf, 'subs') else 0.0 for val in x_vals]
-        y_bm = [float(bm.subs(self.x, val).evalf()) if hasattr(bm, 'subs') else 0.0 for val in x_vals]
+        # Lambdify for fast plotting
+        from sympy import lambdify
+        try:
+            sf_func = lambdify(self.x, sf, modules=['numpy', 'sympy'])
+            bm_func = lambdify(self.x, bm, modules=['numpy', 'sympy'])
+            y_sf = [float(sf_func(v)) for v in x_vals]
+            y_bm = [float(bm_func(v)) for v in x_vals]
+        except:
+            y_sf = [float(sf.subs(self.x, v).evalf()) for v in x_vals]
+            y_bm = [float(bm.subs(self.x, v).evalf()) for v in x_vals]
 
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
         fig.suptitle(title, fontsize=16, fontweight='bold')
         
-        # SFD
         ax1.plot(x_vals, y_sf, color='blue', linewidth=2)
         ax1.fill_between(x_vals, y_sf, color='blue', alpha=0.1)
         ax1.axhline(0, color='black', linewidth=1)
-        ax1.set_title("Shear Force Diagram (SFD)", fontsize=12, fontweight='bold')
-        ax1.set_xlabel("Position (x)")
-        ax1.set_ylabel("Shear Force (V)")
-        ax1.grid(True, linestyle='--', alpha=0.6)
+        ax1.set_title("Shear Force Diagram (SFD)")
+        ax1.grid(True)
 
-        # BMD
         ax2.plot(x_vals, y_bm, color='red', linewidth=2)
         ax2.fill_between(x_vals, y_bm, color='red', alpha=0.1)
         ax2.axhline(0, color='black', linewidth=1)
-        ax2.set_title("Bending Moment Diagram (BMD)", fontsize=12, fontweight='bold')
-        ax2.set_xlabel("Position (x)")
-        ax2.set_ylabel("Bending Moment (M)")
-        ax2.grid(True, linestyle='--', alpha=0.6)
+        ax2.set_title("Bending Moment Diagram (BMD)")
+        ax2.grid(True)
 
         plt.tight_layout()
         if save_path:
@@ -159,23 +182,3 @@ class BeamAnalyzer:
             print(f"Plot saved to {save_path}")
         else:
             plt.show()
-
-    def _plot_graph(self, expr, title, ylabel):
-        x_vals = np.linspace(0, float(self.length), 500)
-        y_vals = []
-        for val in x_vals:
-            try:
-                num_val = float(expr.subs(self.x, val).evalf())
-            except:
-                num_val = 0.0
-            y_vals.append(num_val)
-
-        plt.figure(figsize=(10, 5))
-        plt.plot(x_vals, y_vals, color='blue', linewidth=2)
-        plt.fill_between(x_vals, y_vals, color='blue', alpha=0.1)
-        plt.axhline(0, color='black', linewidth=1)
-        plt.title(title, fontsize=14, fontweight='bold')
-        plt.xlabel("Position (x)", fontsize=12)
-        plt.ylabel(ylabel, fontsize=12)
-        plt.grid(True, linestyle='--', alpha=0.6)
-        plt.show()
