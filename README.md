@@ -58,7 +58,7 @@ Multiple distributed and point loads combined.
 
 Standard singularity functions in many libraries are limited to polynomial orders. This project implements a Lazy-Rewrite Piecewise approach:
 
-- **Storage**: Loads are stored in a compact "Macaulay-style" notation (f(x) . <x-a>^0) to keep the user-facing output clean.
+- **Storage**: Loads are stored in a compact "Macaulay-style" notation (f(x) . < x - a >^0) to keep the user-facing output clean.
 
 - **Transformation**: During the integration phase, the engine "lazily" rewrites these terms into folded `Piecewise` expressions.
 
