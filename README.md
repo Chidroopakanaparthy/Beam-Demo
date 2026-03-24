@@ -1,22 +1,28 @@
-# Beam Analyzer 
+## Exact Symbolic Load Modeling Prototype
 
-A high-fidelity Python prototype for Symbolic Beam Analysis using SymPy. This tool allows for the analysis of beams with arbitrary symbolic loads (trigonometric, exponential, etc.) by leveraging a custom "Lazy-Rewrite" integration engine to ensure 100% mathematical exactness.
+### Overview
+This repository contains the Proof of Concept (POC) for enhancing the SymPy SingularityFunction core. It demonstrates a **Lazy-Rewrite & Fold** approach to integrating non-polynomial beam loads exactly.
 
-## Features 
+### Key Features
+- **Exact Integration**: Supports $\sin(x)$, $\cos(x)$, $\exp(x)$, and $\log(x)$ loads.
+- **Boundary Continuity**: Implements $F(x) - F(a)$ logic to ensure zero-shear starts and $C^0$ continuity.
+- **Hardened Engine**: Includes recursion guards and boundary validity checks for non-integrable functions.
 
-- **Exact Symbolic Math**: Unlike numerical or approximation-based tools, this uses SymPy to maintain exact symbolic expressions (e.g., keeping sin(x) as cos(x) in results).
-- **Arbitrary Load Support**: Handles polynomial (x^2), trigonometric (sin(x)), and partial distributed loads starting/ending at any point.
-- **Automatic Reaction Solving**: Solves static equilibrium equations (sum F=0, sum M=0) to find support reactions before internal analysis.
-- **Continuous Diagrams**: Uses a custom integration wrapper to ensure Shear Force and Bending Moment diagrams are physically continuous at load boundaries.
+### Project Files
+- **singularity_logic.py**: Implements the refactored `xsingularityintegrate` dispatcher.
+- **verify_integration.py**: Stress-tests the engine against symbolic boundaries (e.g., $L/2$).
+- **beam_analyzer.py**: Core logic and `BeamAnalyzer` class using the exact integration approach.
 
-## Repository Structure 
-
+### Repository Structure 
 ```text
 .
 ├── beam_analyzer.py      # Core logic and BeamAnalyzer class
+├── singularity_logic.py  # Standalone Exact Integration Engine
+├── verify_integration.py # Stress-test and Boundary POC script
 ├── main.py               # Main demo script with 4 examples
 ├── requirements.txt      # Project dependencies (sympy, matplotlib, numpy)
-├── screenshots/          # Generated plots for documentation
+├── stress_case_plot.png  # Generated plot for the POC Stress Case
+├── screenshots/          # Standard generated plots for documentation
 │   ├── example1.png
 │   ├── example2.png
 │   ├── example3.png
@@ -24,45 +30,38 @@ A high-fidelity Python prototype for Symbolic Beam Analysis using SymPy. This to
 └── .gitignore            # Excludes environment and cache files
 ```
 
-## Quick Start 
-
+### Quick Start 
 1. **Install dependencies**:
    ```bash
    pip install -r requirements.txt
    ```
-
-2. **Run the demo**:
+2. **Run the POC Stress Test**:
+   ```bash
+   python verify_integration.py
+   ```
+3. **Run the Main Demo**:
    ```bash
    python main.py
    ```
 
-## Examples & Results 
+### Examples & Results 
 
-### Example 1: Polynomial Distributed Load
-Load: w(x) = x^2 from 0 to 10.
+#### Example 1: Polynomial Distributed Load
+Load: $w(x) = x^2$ from 0 to 10.
 ![Example 1](screenshots/example1.png)
 
-### Example 2: Trigonometric Distributed Load
-Load: w(x) = sin(x) from 0 to 10.
+#### Example 2: Trigonometric Distributed Load
+Load: $w(x) = \sin(x)$ from 0 to 10.
 ![Example 2](screenshots/example2.png)
 
-### Example 3: Partial Distributed Load
-Load: w(x) = 2x from x=2 to x=8.
+#### Example 3: Partial Distributed Load
+Load: $w(x) = 2x$ from $x=2$ to $x=8$.
 ![Example 3](screenshots/example3.png)
 
-### Example 4: Multiple Loads
+#### Example 4: Multiple Loads
 Multiple distributed and point loads combined.
 ![Example 4](screenshots/example4.png)
 
-## Technical Implementation 
+Successfully integrated **$\cos(x)\exp(x)$** over $[0, L/2]$ with symbolic result simplification and boundary continuity enforcement.
 
-Standard singularity functions in many libraries are limited to polynomial orders. This project implements a Lazy-Rewrite Piecewise approach:
-
-- **Storage**: Loads are stored in a compact "Macaulay-style" notation (f(x) . < x - a >^0) to keep the user-facing output clean.
-
-- **Transformation**: During the integration phase, the engine "lazily" rewrites these terms into folded `Piecewise` expressions.
-
-- **Integration**: It performs a definite integral from 0 to x$, which automatically handles the integration constants and ensures the diagrams start at zero at the load boundaries.
-
----
-Developed as a proof-of-concept for the SymPy Physics module.
+![Stress Case Result](stress_case_plot.png)
