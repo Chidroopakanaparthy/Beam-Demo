@@ -72,4 +72,4 @@ graph TD
 | **Example 4: Combined Loading** | ![Example 4](docs/gallery/combined_loading.png) |
 
 ---
-*Developed as a "Staff-Level" prototype for the SymPy community.*
+*Developed as a prototype for the SymPy community.*
