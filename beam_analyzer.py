@@ -1,50 +1,100 @@
 import sys
-# Standard recursion limit
+import warnings
+from sympy import (
+    symbols, sympify, SingularityFunction, integrate,
+    Piecewise, Add, Mul, piecewise_fold, solve as sympy_solve, S
+)
+from sympy.physics.continuum_mechanics.beam import Beam
+from singularity_logic import dispatch_integration, _safe_simplify
+
+# Deep symbolic trees from transcendental loads can hit default limits
 sys.setrecursionlimit(5000)
 
-from sympy import symbols, sympify, SingularityFunction, simplify, integrate, Piecewise, Add, Mul, piecewise_fold, solve as sympy_solve
-from sympy.physics.continuum_mechanics.beam import Beam
-import matplotlib.pyplot as plt
-import numpy as np
 
 class BeamAnalyzer:
-    def __init__(self, length):
-        self.length = length
-        self.beam = Beam(length, 1, 1)
+    """
+    Engineering Wrapper for Beam Analysis.
+
+    Separates physical reality checks and engineering abstractions from the
+    symbolic integration engine in singularity_logic.py.
+    """
+
+    def __init__(self, length, elastic_modulus=symbols('E'), second_moment=symbols('I')):
+        self.length = sympify(length)
+        self.E = sympify(elastic_modulus)
+        self.I = sympify(second_moment)
+
+        self.beam = Beam(self.length, self.E, self.I)
         self.x = self.beam.variable
+
         self.loads = []
         self.reaction_symbols = []
         self.reactions = {}
+        self._solved = False
+        self._reaction_positions = {}
+
+    # ------------------------------------------------------------------
+    # Defensive Programming
+    # ------------------------------------------------------------------
+
+    def _validate_coordinate(self, pos, name="Position"):
+        """
+        Ensures loads are within the physical bounds of the beam.
+        Symbolic positions (e.g., k*L) skip validation.
+        """
+        try:
+            val = float(pos)
+            L_val = float(self.length)
+            if val < 0 or val > L_val:
+                warnings.warn(
+                    f"Physical Reality Check: {name} {val} is outside "
+                    f"beam length {L_val}. Clipping."
+                )
+                return max(0, min(val, L_val))
+        except (TypeError, ValueError):
+            pass
+        return sympify(pos)
+
+    # ------------------------------------------------------------------
+    # Load Application
+    # ------------------------------------------------------------------
 
     def add_distributed_load(self, expr, start, end):
-        self.loads.append(("dist", sympify(expr, locals={'x': self.x}), start, end))
+        """Adds a distributed load q(x) over the interval [start, end]."""
+        start_c = self._validate_coordinate(start, "Start Position")
+        end_c = self._validate_coordinate(end, "End Position")
+        self.loads.append(("dist", sympify(expr, locals={'x': self.x}), start_c, end_c))
+        self._solved = False
 
     def add_point_load(self, value, position):
-        self.loads.append(("point", sympify(float(value)) if isinstance(value, (int, float)) else sympify(value, locals={'x': self.x}), position))
+        """Adds a point load P at a specific position."""
+        pos_c = self._validate_coordinate(position, "Point Load Position")
+        self.loads.append(("point", sympify(value, locals={'x': self.x}), pos_c))
+        self._solved = False
 
-    def apply_loads(self):
-        # Clear any existing loads to avoid duplicates if solve() is called twice
-        self.beam._loads = [] 
-        for load in self.loads:
-            if load[0] == "dist":
-                _, expr, start, end = load
-                self.beam.apply_load(expr, start, 0)
-                self.beam.apply_load(-expr, end, 0)
-            elif load[0] == "point":
-                _, value, pos = load
-                self.beam.apply_load(value, pos, -1)
+    # ------------------------------------------------------------------
+    # Equilibrium Solver
+    # ------------------------------------------------------------------
 
-    def solve(self):
-        r0_sym = symbols('R_0')
-        rL_sym = symbols('R_L')
-        self.reaction_symbols = [r0_sym, rL_sym]
-        
-        # We'll calculate equilibrium using external loads from self.loads
-        # Standard convention: Downward loads are positive, reaction forces (upward) are negative in the load sum
-        # so: sum(external_loads) = R0 + RL
-        ext_force = 0
-        ext_moment = 0
-        
+    def solve_reactions(self, support_positions=None):
+        """
+        Symbolic Boundary Robustness: Solves for reaction forces.
+        Handles symbolic constants (L, E, I) without requiring numeric values.
+        """
+        if support_positions is None:
+            support_positions = [0, self.length]
+
+        self.reaction_symbols = [
+            symbols(f'R_{str(p).replace("/", "_")}') for p in support_positions
+        ]
+        # Store mapping so _apply_to_internal_beam can look up positions
+        self._reaction_positions = dict(
+            zip(self.reaction_symbols, support_positions)
+        )
+
+        ext_force = S.Zero
+        ext_moment = S.Zero
+
         for load in self.loads:
             if load[0] == "point":
                 _, val, pos = load
@@ -54,131 +104,58 @@ class BeamAnalyzer:
                 _, expr, start, end = load
                 ext_force += integrate(expr, (self.x, start, end))
                 ext_moment += integrate(self.x * expr, (self.x, start, end))
-        
-        # Equilibrium equations (sum of forces = 0, sum of moments at x=0 = 0)
-        # R0 + RL - ext_force = 0  => Upward R0, R1
-        # RL * L - ext_moment = 0 
-        eq1 = r0_sym + rL_sym - ext_force
-        eq2 = rL_sym * self.length - ext_moment
-        
+
+        # Static Equilibrium:
+        #   sum(R_i) = ext_force
+        #   sum(R_i * pos_i) = ext_moment
+        eq1 = Add(*self.reaction_symbols) - ext_force
+        eq2 = Add(*[r * p for r, p in zip(self.reaction_symbols, support_positions)]) - ext_moment
+
         sol = sympy_solve([eq1, eq2], self.reaction_symbols, dict=True)
-        
+
         if sol:
             self.reactions = sol[0]
-            # Apply reactions to the beam model
-            self.apply_loads()
-            # Note: We use negative sign for reactions in the beam model because upward is negative in apply_load
-            self.beam.apply_load(-self.reactions[r0_sym], 0, -1)
-            self.beam.apply_load(-self.reactions[rL_sym], self.length, -1)
+            self._solved = True
+            self._apply_to_internal_beam()
         else:
-            raise ValueError("Could not solve for reaction loads.")
+            raise ValueError("Statically Indeterminate or Could Not Solve Equilibrium.")
 
-    def _get_piecewise_integral(self, expr):
-        if expr == 0:
-            return 0
-        pw = piecewise_fold(expr.rewrite(Piecewise))
-        t = symbols('t')
-        integral = integrate(pw.subs(self.x, t), (t, 0, self.x))
-        return piecewise_fold(integral)
+    def _apply_to_internal_beam(self):
+        """Mirrors loads and reactions onto the internal SymPy Beam object."""
+        self.beam._loads = []
+        for load in self.loads:
+            if load[0] == "dist":
+                _, expr, start, end = load
+                self.beam.apply_load(expr, start, 0)
+                self.beam.apply_load(-expr, end, 0)
+            elif load[0] == "point":
+                _, value, pos = load
+                self.beam.apply_load(value, pos, -1)
+
+        for sym, val in self.reactions.items():
+            pos = self._reaction_positions.get(sym, 0)
+            self.beam.apply_load(-val, pos, -1)
+
+    # ------------------------------------------------------------------
+    # Analysis Results
+    # ------------------------------------------------------------------
 
     def get_shear_force(self):
-        load = self.beam.load.subs(self.reactions)
-        # V(x) = -integrate(q)
-        # Wait, if upward reactions are applied as -R, and downward loads as q
-        # V'(x) = -load. So V = -integral(load)
-        shear = -self._get_piecewise_integral(load)
-        return shear
+        """V(x) = -integral(q(x)) using the Smart Dispatcher."""
+        if not self._solved:
+            self.solve_reactions()
+        total_load = self.beam.load.subs(self.reactions)
+        shear = -dispatch_integration(total_load, self.x)
+        return _safe_simplify(shear)
 
     def get_bending_moment(self):
+        """M(x) = integral(V(x)) using the Smart Dispatcher."""
         sf = self.get_shear_force()
-        moment = self._get_piecewise_integral(sf)
-        return moment
+        moment = dispatch_integration(sf, self.x)
+        return _safe_simplify(moment)
 
-    def pretty_results(self):
-        sf = self.get_shear_force()
-        bm = self.get_bending_moment()
-        print("\n=== Results ===")
-        print("\nShear Force (V):")
-        print(sf)
-        print("\nBending Moment (M):")
-        print(bm)
-
-    def interpret_results(self):
-        print("\n=== Interpretation ===")
-        print("- Positive shear → upward force")
-        print("- Negative shear → downward force")
-        print("- Bending moment sign indicates curvature")
-        print("- Discontinuities indicate point loads/supports")
-
-    def show_reactions(self):
-        print("\n=== Reaction Forces ===")
-        if self.reactions:
-            for key, val in self.reactions.items():
-                print(f"{key} = {val}")
-        else:
-            print("Reactions not solved yet.")
-
-    def plot_sfd(self):
-        sf = self.get_shear_force()
-        self._plot_graph(sf, "Shear Force Diagram (SFD)", "Shear Force (V)")
-
-    def plot_bmd(self):
-        bm = self.get_bending_moment()
-        self._plot_graph(bm, "Bending Moment Diagram (BMD)", "Bending Moment (M)")
-
-    def _plot_graph(self, expr, title, ylabel):
-        x_vals = np.linspace(0, float(self.length), 500)
-        from sympy import lambdify
-        try:
-            func = lambdify(self.x, expr, modules=['numpy', 'sympy'])
-            y_vals = [float(func(v)) for v in x_vals]
-        except:
-            y_vals = [float(expr.subs(self.x, v).evalf()) for v in x_vals]
-
-        plt.figure(figsize=(10, 5))
-        plt.plot(x_vals, y_vals, color='blue', linewidth=2)
-        plt.fill_between(x_vals, y_vals, color='blue', alpha=0.1)
-        plt.axhline(0, color='black', linewidth=1)
-        plt.title(title, fontsize=14, fontweight='bold')
-        plt.xlabel("Position (x)")
-        plt.ylabel(ylabel)
-        plt.grid(True)
-        plt.show()
-
-    def plot_results(self, title="Beam Analysis Results", save_path=None):
-        sf = self.get_shear_force()
-        bm = self.get_bending_moment()
-        x_vals = np.linspace(0, float(self.length), 500)
-        
-        # Lambdify for fast plotting
-        from sympy import lambdify
-        try:
-            sf_func = lambdify(self.x, sf, modules=['numpy', 'sympy'])
-            bm_func = lambdify(self.x, bm, modules=['numpy', 'sympy'])
-            y_sf = [float(sf_func(v)) for v in x_vals]
-            y_bm = [float(bm_func(v)) for v in x_vals]
-        except:
-            y_sf = [float(sf.subs(self.x, v).evalf()) for v in x_vals]
-            y_bm = [float(bm.subs(self.x, v).evalf()) for v in x_vals]
-
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
-        fig.suptitle(title, fontsize=16, fontweight='bold')
-        
-        ax1.plot(x_vals, y_sf, color='blue', linewidth=2)
-        ax1.fill_between(x_vals, y_sf, color='blue', alpha=0.1)
-        ax1.axhline(0, color='black', linewidth=1)
-        ax1.set_title("Shear Force Diagram (SFD)")
-        ax1.grid(True)
-
-        ax2.plot(x_vals, y_bm, color='red', linewidth=2)
-        ax2.fill_between(x_vals, y_bm, color='red', alpha=0.1)
-        ax2.axhline(0, color='black', linewidth=1)
-        ax2.set_title("Bending Moment Diagram (BMD)")
-        ax2.grid(True)
-
-        plt.tight_layout()
-        if save_path:
-            plt.savefig(save_path)
-            print(f"Plot saved to {save_path}")
-        else:
-            plt.show()
+    def get_distributed_load_expr(self):
+        """Returns the combined load expression for plotting."""
+        if not self._solved:
+            self.solve_reactions()
+        return self.beam.load.subs(self.reactions)
