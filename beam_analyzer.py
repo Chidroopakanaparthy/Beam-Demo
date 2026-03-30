@@ -37,11 +37,11 @@ class BeamAnalyzer:
     # Defensive Programming
     # ------------------------------------------------------------------
 
+    #Ensures loads are within the physical bounds of the beam.
+    #Symbolic positions (e.g., k*L) skip validation.
+
     def _validate_coordinate(self, pos, name="Position"):
-        """
-        Ensures loads are within the physical bounds of the beam.
-        Symbolic positions (e.g., k*L) skip validation.
-        """
+        
         try:
             val = float(pos)
             L_val = float(self.length)
@@ -59,21 +59,27 @@ class BeamAnalyzer:
     # Load Application
     # ------------------------------------------------------------------
 
+    #Adds a distributed load q(x) over the interval [start, end].
+
     def add_distributed_load(self, expr, start, end):
-        """Adds a distributed load q(x) over the interval [start, end]."""
+        
         start_c = self._validate_coordinate(start, "Start Position")
         end_c = self._validate_coordinate(end, "End Position")
         self.loads.append(("dist", sympify(expr, locals={'x': self.x}), start_c, end_c))
         self._solved = False
 
+    #Adds a point load P at a specific position.
+
     def add_point_load(self, value, position):
-        """Adds a point load P at a specific position."""
+       
         pos_c = self._validate_coordinate(position, "Point Load Position")
         self.loads.append(("point", sympify(value, locals={'x': self.x}), pos_c))
         self._solved = False
 
+    #Adds a point moment M at a specific position.
+
     def add_point_moment(self, value, position):
-        """Adds a point moment M at a specific position."""
+        
         pos_c = self._validate_coordinate(position, "Point Moment Position")
         self.loads.append(("moment", sympify(value, locals={'x': self.x}), pos_c))
         self._solved = False
@@ -81,19 +87,18 @@ class BeamAnalyzer:
     # ------------------------------------------------------------------
     # Equilibrium Solver
     # ------------------------------------------------------------------
+    
+    #Symbolic Boundary Robustness: Solves for reaction forces.
+    #Handles symbolic constants (L, E, I) without requiring numeric values.
 
     def solve_reactions(self, support_positions=None):
-        """
-        Symbolic Boundary Robustness: Solves for reaction forces.
-        Handles symbolic constants (L, E, I) without requiring numeric values.
-        """
+        
         if support_positions is None:
             support_positions = [0, self.length]
 
         self.reaction_symbols = [
             symbols(f'R_{str(p).replace("/", "_")}') for p in support_positions
         ]
-        # Store mapping so _apply_to_internal_beam can look up positions
         self._reaction_positions = dict(
             zip(self.reaction_symbols, support_positions)
         )
@@ -129,8 +134,10 @@ class BeamAnalyzer:
         else:
             raise ValueError("Statically Indeterminate or Could Not Solve Equilibrium.")
 
+    #Mirrors loads and reactions onto the internal SymPy Beam object.
+
     def _apply_to_internal_beam(self):
-        """Mirrors loads and reactions onto the internal SymPy Beam object."""
+        
         self.beam._loads = []
         for load in self.loads:
             if load[0] == "dist":
@@ -155,22 +162,28 @@ class BeamAnalyzer:
     # Analysis Results
     # ------------------------------------------------------------------
 
+    #V(x) = -integral(q(x)) using the Smart Dispatcher.
+
     def get_shear_force(self):
-        """V(x) = -integral(q(x)) using the Smart Dispatcher."""
+        
         if not self._solved:
             self.solve_reactions()
         total_load = self.beam.load.subs(self.reactions)
         shear = -dispatch_integration(total_load, self.x)
         return _safe_simplify(shear)
 
+    #M(x) = integral(V(x)) using the Smart Dispatcher.
+
     def get_bending_moment(self):
-        """M(x) = integral(V(x)) using the Smart Dispatcher."""
+        
         sf = self.get_shear_force()
         moment = dispatch_integration(sf, self.x)
         return _safe_simplify(moment)
 
+    #Returns the combined load expression for plotting.
+
     def get_distributed_load_expr(self):
-        """Returns the combined load expression for plotting."""
+        
         if not self._solved:
             self.solve_reactions()
         return self.beam.load.subs(self.reactions)

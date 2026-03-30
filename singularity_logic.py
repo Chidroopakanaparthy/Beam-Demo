@@ -21,12 +21,11 @@ def _has_transcendental_of(expr, var):
                 return True
     return False
 
+#Complexity Guard: Recursively counts total branches in a Piecewise expression.
+#Prevents lambdify from hanging on deeply nested Piecewise trees.
 
 def _count_piecewise_args(expr):
-    """
-    Complexity Guard: Recursively counts total branches in a Piecewise expression.
-    Prevents lambdify from hanging on deeply nested Piecewise trees.
-    """
+    
     if not isinstance(expr, Piecewise):
         return 1
     count = 0
@@ -34,12 +33,11 @@ def _count_piecewise_args(expr):
         count += _count_piecewise_args(e)
     return count
 
+#SymPy's simplify() can crash with 'Invalid NaN comparison' on mixed
+#SingularityFunction + Piecewise expressions. This wrapper catches that.
 
 def _safe_simplify(expr):
-    """
-    SymPy's simplify() can crash with 'Invalid NaN comparison' on mixed
-    SingularityFunction + Piecewise expressions. This wrapper catches that.
-    """
+    
     try:
         return simplify(expr)
     except (TypeError, ValueError, RecursionError):
