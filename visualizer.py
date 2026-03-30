@@ -1,12 +1,11 @@
 import matplotlib
-matplotlib.use('Agg')  # Non-interactive backend for CI and export
+matplotlib.use('Agg')  
 import matplotlib.pyplot as plt
 import numpy as np
 import os
 from sympy import lambdify, Piecewise, S, SingularityFunction, piecewise_fold
 import warnings
 
-# Professional Styling
 try:
     plt.style.use('seaborn-v0_8-muted')
 except Exception:
@@ -25,7 +24,6 @@ class BeamVisualizer:
       to prevent 'slanted lines' in SFD plots.
     - Uses LaTeX-style labels via Matplotlib's mathtext parser.
     - Generates a 3-stack plot: Load w(x), Shear V(x), Moment M(x).
-    - Exports to docs/gallery/ automatically.
     """
 
     def __init__(self, analyzer):
@@ -91,7 +89,8 @@ class BeamVisualizer:
             seg_x = np.linspace(p_start, p_end, n_seg)
 
             try:
-                seg_y = [float(f(val)) for val in seg_x]
+                with np.errstate(divide='ignore', invalid='ignore'):
+                    seg_y = [float(f(val)) for val in seg_x]
             except Exception:
                 seg_y = [0.0] * len(seg_x)
 

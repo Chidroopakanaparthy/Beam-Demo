@@ -7,7 +7,13 @@ from sympy import (
 def _has_transcendental_of(expr, var):
     """
     Check if expr contains transcendental functions that depend on var.
-    Constants like exp(5) or cos(3) in reaction coefficients are NOT transcendental in x.
+    
+    Developer Notes:
+    This check is a deliberate mathematical optimization. Reaction coefficients 
+    from solve() often contain constants like exp(5) or cos(3). If we blindly 
+    triggered the Piecewise fallback for these, we'd lose the O(1) efficiency 
+    of the SingularityFunction power rule unnecessarily. Checking free_symbols 
+    ensures we only fallback when the *shape* of the load requires it.
     """
     for func_type in (sin, cos, exp, log):
         for sub_expr in expr.atoms(func_type):

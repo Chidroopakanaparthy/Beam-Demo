@@ -39,5 +39,12 @@ Professional engineering plots require more than just `plt.plot()`. Our `BeamVis
 | **Plot Quality** | Basic | Professional ($C^0$ Jumps) |
 | **Symbolic Robustness** | Numerical Only | Pure Symbolic ($L, E, I$) |
 
+## Performance Trade-offs: Singularity vs. Piecewise
+
+In symbolic mathematics, the form of the expression dictates algorithmic complexity. The Dispatcher Engine purposefully delineates two regimes:
+
+1. **Singularity Pass ($O(1)$ Integration)**: For polynomial distributions and discrete boundary forces (like point loads $n=-1$ and moments $n=-2$), the engine maintains them as `SingularityFunction` objects. Their integration leverages pure analytical power rules: $\int \langle x-a \rangle^n = \frac{\langle x-a \rangle^{n+1}}{n+1}$. This $O(1)$ approach circumvents expensive branching and is optimal for typical mechanics problems.
+
+2. **Piecewise Fallback ($O(N)$ Integration)**: When transcendental distributions ($\sin, \exp$) cannot be modeled elegantly with abstract singularity powers, the engine deliberately folds the problem into a `Piecewise` construct. This acts as an $O(N)$ sweep (where $N$ is the segment count) tracking exact definite boundaries over the interval to maintain the mathematical prerequisite of $C^0$ continuity in the moment tensor without failure—a required rigor where the naive power rule naturally fails.
+
 ---
-*Authored by the Google Deepmind Lead Contributor for GSoC 2026.*

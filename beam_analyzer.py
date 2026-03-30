@@ -72,6 +72,12 @@ class BeamAnalyzer:
         self.loads.append(("point", sympify(value, locals={'x': self.x}), pos_c))
         self._solved = False
 
+    def add_point_moment(self, value, position):
+        """Adds a point moment M at a specific position."""
+        pos_c = self._validate_coordinate(position, "Point Moment Position")
+        self.loads.append(("moment", sympify(value, locals={'x': self.x}), pos_c))
+        self._solved = False
+
     # ------------------------------------------------------------------
     # Equilibrium Solver
     # ------------------------------------------------------------------
@@ -100,6 +106,9 @@ class BeamAnalyzer:
                 _, val, pos = load
                 ext_force += val
                 ext_moment += val * pos
+            elif load[0] == "moment":
+                _, val, pos = load
+                ext_moment += val
             elif load[0] == "dist":
                 _, expr, start, end = load
                 ext_force += integrate(expr, (self.x, start, end))
@@ -131,9 +140,15 @@ class BeamAnalyzer:
             elif load[0] == "point":
                 _, value, pos = load
                 self.beam.apply_load(value, pos, -1)
+            elif load[0] == "moment":
+                _, value, pos = load
+                # A clockwise applied moment is treated as a positive 'value' in ext_moment.
+                # SymPy's `apply_load(M, a, -2)` interprets a positive M as counter-clockwise.
+                # Therefore, we negate the clockwise value to align with SymPy's convention.
+                self.beam.apply_load(-value, pos, -2)
 
         for sym, val in self.reactions.items():
-            pos = self._reaction_positions.get(sym, 0)
+            pos = self._reaction_positions.get(sym, S.Zero)
             self.beam.apply_load(-val, pos, -1)
 
     # ------------------------------------------------------------------

@@ -53,7 +53,7 @@ def test_transcendental_continuity():
     )
 
 
-# ── Symbolic Boundaries: Tom's Concern ─────────────────────────────────────
+# ── Symbolic Boundaries ─────────────────────────────────────
 
 def test_symbolic_boundaries():
     """
@@ -72,6 +72,35 @@ def test_symbolic_boundaries():
 
     assert simplify(rL - k * P) == 0
     assert simplify(r0 - (1 - k) * P) == 0
+
+
+# ── Edge-Case Stress Testing: Boundary Stability ───────────────────────────
+
+def test_boundary_singularities():
+    """
+    Test Case A: Apply a point load (n=-1) at exactly x=0 and verify 
+                 reaction forces are calculated without ZeroDivisionError.
+    Test Case B: Apply a point moment (n=-2) at exactly x=L and verify
+                 the Bending Moment Diagram closes to zero correctly.
+    """
+    x = symbols('x')
+    analyzer = BeamAnalyzer(length=10)
+    
+    # Test Case A: Point load at exactly x=0
+    analyzer.add_point_load(5, 0)
+    
+    # Test Case B: Point moment at exactly x=L (10)
+    analyzer.add_point_moment(10, 10)
+    
+    analyzer.solve_reactions()
+    
+    assert float(analyzer.reactions[symbols('R_0')].evalf()) == 4
+    assert float(analyzer.reactions[symbols('R_10')].evalf()) == 1
+    
+    moment = analyzer.get_bending_moment()
+    
+    # Verify the BMD closes to zero correctly exactly at the boundary
+    assert float(moment.subs(x, 10).evalf()) == pytest.approx(0, abs=1e-6)
 
 
 # ── Defensive Programming: Physical Validation ────────────────────────────
