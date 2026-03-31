@@ -86,7 +86,11 @@ class BeamVisualizer:
             p_start = sorted_points[i]
             p_end = sorted_points[i + 1]
             n_seg = max(2, int(num_points * (p_end - p_start) / self.L))
-            seg_x = np.linspace(p_start, p_end, n_seg)
+            
+            # Step offset captures mathematically accurate Right/Left Limits 
+            # without triggering exact symbolic edge collision evaluation
+            eps = 1e-9
+            seg_x = np.linspace(p_start + eps, p_end - eps, n_seg)
 
             try:
                 with np.errstate(divide='ignore', invalid='ignore'):
@@ -97,10 +101,8 @@ class BeamVisualizer:
             x_final.extend(seg_x)
             y_final.extend(seg_y)
 
-            # Insert NaN gap at internal boundaries to break the line
-            if i < len(sorted_points) - 2:
-                x_final.append(p_end)
-                y_final.append(np.nan)
+            # Note: We omit internal NaN insertion here to force 
+            # vertical "jumps" to draw correctly across boundaries.
 
         return np.array(x_final), np.array(y_final)
 
@@ -110,8 +112,18 @@ class BeamVisualizer:
             self.analyzer.solve_reactions()
 
         load = self.analyzer.get_distributed_load_expr()
-        shear = self.analyzer.get_shear_force()
-        moment = self.analyzer.get_bending_moment()
+        shear = self.analyzer.beam.shear_force()
+        moment = self.analyzer.beam.bending_moment()
+
+        def set_padded_ylim(ax, y_vals):
+            """Ensures boundary jumps aren't cut off by adding a 15% visual pad."""
+            valid_y = y_vals[np.isfinite(y_vals)]
+            if len(valid_y) == 0:
+                return
+            y_min, y_max = np.min(valid_y), np.max(valid_y)
+            rng = y_max - y_min
+            pad = 1.0 if rng == 0 else rng * 0.15
+            ax.set_ylim(y_min - pad, y_max + pad)
 
         fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(10, 12), sharex=True)
         fig.suptitle(title, fontsize=16, fontweight='bold')
@@ -124,6 +136,7 @@ class BeamVisualizer:
         ax1.set_title('Load Distribution')
         ax1.grid(True, linestyle='--', alpha=0.7)
         ax1.axhline(0, color='black', linewidth=1)
+        set_padded_ylim(ax1, y_w)
 
         # --- Shear Force Diagram ---
         x_v, y_v = self._get_plot_data(shear)
@@ -133,6 +146,7 @@ class BeamVisualizer:
         ax2.set_title('Shear Force Diagram')
         ax2.grid(True, linestyle='--', alpha=0.7)
         ax2.axhline(0, color='black', linewidth=1)
+        set_padded_ylim(ax2, y_v)
 
         # --- Bending Moment Diagram ---
         x_m, y_m = self._get_plot_data(moment)
@@ -143,6 +157,7 @@ class BeamVisualizer:
         ax3.set_title('Bending Moment Diagram')
         ax3.grid(True, linestyle='--', alpha=0.7)
         ax3.axhline(0, color='black', linewidth=1)
+        set_padded_ylim(ax3, y_m)
 
         plt.tight_layout(rect=[0, 0.03, 1, 0.95])
 

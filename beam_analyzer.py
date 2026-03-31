@@ -45,6 +45,7 @@ class BeamAnalyzer:
         self.reactions = {}
         self._solved = False
         self._reaction_positions = {}
+        self.sys_matrices = (None, None)
 
     # ------------------------------------------------------------------
     # Defensive Programming
@@ -317,15 +318,32 @@ class BeamAnalyzer:
             except Exception:
                 sols = sympy_solve(equations, C, dict=True)
                 sol_dict = {k: nsimplify(v.expand()) for k, v in sols[0].items()} if sols else {c: 0 for c in C}
+            
+            self.sys_matrices = (A, B)
 
         # Plug back into Beam object
         final_theta = piecewise_theta.subs(sol_dict).rewrite(Piecewise)
         final_y = piecewise_y.subs(sol_dict).rewrite(Piecewise)
 
         # Upgrade engine without breaking dashboard
+        self.beam.shear_force = lambda **kwargs: _safe_simplify(piecewise_fold(self.get_shear_force().rewrite(Piecewise)))
+        self.beam.bending_moment = lambda **kwargs: _safe_simplify(piecewise_fold(self.get_bending_moment().rewrite(Piecewise)))
         self.beam.slope = lambda **kwargs: final_theta
         self.beam.deflection = lambda **kwargs: final_y
         return True
+
+    def print_matrix_state(self):
+        """Developer Mode: Print the state of boundary condition assembly."""
+        A, B = self.sys_matrices
+        if A is None or B is None:
+            print("[DevMode] Systems matrices not assembled yet.")
+            return
+
+        print(f"\n[DevMode] Boundary Condition Matrix [A] ({A.rows}x{A.cols}):")
+        from sympy import pprint
+        pprint(A)
+        print(f"\n[DevMode] Output State Vector [B] ({B.rows}x{B.cols}):")
+        pprint(B)
 
     # ------------------------------------------------------------------
     # Analysis Results
@@ -337,11 +355,12 @@ class BeamAnalyzer:
         
         if not self._solved:
             self.solve_reactions()
-        # Force Piecewise rewrite at the start of analysis
+        # DO NOT force Piecewise rewrite here. Let dispatch_integration handle 
+        # the SingularityFunction accumulation boundaries inherently.
         self.load_expression = self.beam.load.subs(self.reactions)
-        self.load_expression = self.load_expression.rewrite(Piecewise)
         shear = -dispatch_integration(self.load_expression, self.x)
-        return _safe_simplify(shear)
+        # Avoid simplifying intermediate integrations to preserve Add structure
+        return shear
 
     #M(x) = integral(V(x)) using the Smart Dispatcher.
 
@@ -349,7 +368,8 @@ class BeamAnalyzer:
         
         sf = self.get_shear_force()
         moment = dispatch_integration(sf, self.x)
-        return _safe_simplify(moment)
+        # Avoid simplifying intermediate integrations to preserve Add structure
+        return moment
 
     #Returns the combined load expression for plotting.
 

@@ -5,7 +5,7 @@ matplotlib.use('Agg')
 from beam_analyzer import BeamAnalyzer
 from visualizer import BeamVisualizer
 
-def print_analytical_results(analyzer):
+def print_analytical_results(analyzer, dev_mode=False):
     analyzer.assemble_system()
     print("   [Analytical Results]")
     
@@ -13,20 +13,21 @@ def print_analytical_results(analyzer):
     print(f"   Reactions: {reactions_str}")
     
     print("   Shear Force V(x):")
-    print(f"     {analyzer._tame_expression(analyzer.get_shear_force())}")
+    print(f"     {analyzer._tame_expression(analyzer.beam.shear_force())}")
     
     print("   Bending Moment M(x):")
-    print(f"     {analyzer._tame_expression(analyzer.get_bending_moment())}")
+    print(f"     {analyzer._tame_expression(analyzer.beam.bending_moment())}")
     
     print("   Slope θ(x):")
     print(f"     {analyzer._tame_expression(analyzer.beam.slope())}")
     
     print("   Deflection y(x):")
     print(f"     {analyzer._tame_expression(analyzer.beam.deflection())}")
+    
+    if dev_mode:
+        analyzer.print_matrix_state()
 
 def run_demo():
-    print("=== GSoC 2026: Beam Analyzer Prototype ===")
-    print("Exact Symbolic Integration & Professional Visualization\n")
 
     # Example 1: Polynomial Load
     print(">>> Example 1: Polynomial Distributed Load")
@@ -71,13 +72,13 @@ def run_demo():
     a4.add_distributed_load("3", 5, 10)
     a4.add_point_load(6, 3)
     a4.solve_reactions()
-    print_analytical_results(a4)
+    print_analytical_results(a4, dev_mode=True)
     BeamVisualizer(a4).plot_3stack(
         title="Example 4: Combined Loading",
         save_name="combined_loading.png"
     )
 
-    print("\n=== Demo Completed Successfully ===")
+    print("\n----------- Demo Completed Successfully -----------")
     print("Results exported to docs/gallery/")
 
 
