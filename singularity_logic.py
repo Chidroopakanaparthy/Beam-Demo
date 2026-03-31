@@ -2,6 +2,7 @@ from sympy import (
     SingularityFunction, Piecewise, piecewise_fold, integrate, simplify,
     S, zoo, DiracDelta, Symbol, sin, cos, exp, log, Add, Mul, Heaviside
 )
+from utils.expression_transformer import convert_to_piecewise_integral
 
 
 def _has_transcendental_of(expr, var):
@@ -21,17 +22,7 @@ def _has_transcendental_of(expr, var):
                 return True
     return False
 
-#Complexity Guard: Recursively counts total branches in a Piecewise expression.
-#Prevents lambdify from hanging on deeply nested Piecewise trees.
 
-def _count_piecewise_args(expr):
-    
-    if not isinstance(expr, Piecewise):
-        return 1
-    count = 0
-    for e, _ in expr.args:
-        count += _count_piecewise_args(e)
-    return count
 
 #SymPy's simplify() can crash with 'Invalid NaN comparison' on mixed
 #SingularityFunction + Piecewise expressions. This wrapper catches that.
@@ -95,37 +86,9 @@ def dispatch_integration(f, x):
                 return q_x * SingularityFunction(base, boundary, n + 1)
 
             # For n >= 0 (distributed loads): use Piecewise fallback
-            try:
-                pw = piecewise_fold(f.rewrite(Piecewise))
-
-                if _count_piecewise_args(pw) > 50:
-                    from sympy import Integral
-                    return Integral(f, x)
-
-                if isinstance(pw, Piecewise):
-                    new_args = []
-                    for expr, cond in pw.args:
-                        if expr == 0:
-                            new_args.append((S.Zero, cond))
-                            continue
-
-                        # F(x) - F(a): ensures the integral is zero at the
-                        # start of each load segment, which is required for
-                        # Shear/Moment continuity in Euler-Bernoulli theory.
-                        F = integrate(expr, x)
-                        try:
-                            val_at_a = F.subs(x, boundary)
-                            if not val_at_a.has(zoo, S.NaN, S.Infinity):
-                                F = F - val_at_a
-                        except (ValueError, TypeError):
-                            pass
-
-                        new_args.append((F, cond))
-
-                    res = Piecewise(*new_args)
-                    return _safe_simplify(piecewise_fold(res))
-            except (RecursionError, ValueError):
-                pass
+            res_pw = convert_to_piecewise_integral(f, x, boundary)
+            if res_pw is not None:
+                return _safe_simplify(res_pw)
 
     # --- Global fallback: DiracDelta rewrite (standard SymPy path) ---
     try:

@@ -126,6 +126,46 @@ def test_gallery_export():
 
     assert os.path.exists(os.path.join("docs/gallery", gallery_file))
 
+# ── Matrix System Verification ─────────────────────────────────────────────
 
+#Verify a beam with 3+ different transcendental segments.
+def test_matrix_stability():
+    
+    x = symbols('x')
+    analyzer = BeamAnalyzer(length=10)
+    
+    analyzer.add_distributed_load(sin(x), 0, 3)
+    analyzer.add_distributed_load(exp(x), 3, 7)
+    analyzer.add_distributed_load(x**2, 7, 10)
+    
+    analyzer.solve_reactions()
+    assert analyzer.assemble_system() is True
+    
+    slope_expr = analyzer.beam.slope()
+    defl_expr = analyzer.beam.deflection()
+    
+    assert slope_expr.has(Piecewise)
+    assert defl_expr.has(Piecewise)
+
+    assert not slope_expr.subs(x, 3).has(S.NaN)
+    assert not slope_expr.subs(x, 7).has(S.NaN)
+
+#Verify that a symbolic load at L/2 integrates and maps correctly.
+
+def test_symbolic_placement():
+    
+    L, k = symbols('L k', positive=True)
+    P, x = symbols('P x')
+    
+    analyzer = BeamAnalyzer(length=L)
+    analyzer.add_point_load(P, L/2)
+    analyzer.add_distributed_load(k*x, 0, L/2)
+    
+    analyzer.solve_reactions(support_positions=[0, L])
+    assert analyzer.assemble_system() is True
+    
+    assert len(analyzer.segments) == 2
+    assert L/2 in analyzer.segments[0]
+    
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

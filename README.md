@@ -4,7 +4,7 @@
 [![GSoC 2026](https://img.shields.io/badge/GSoC-2026-orange.svg)](https://summerofcode.withgoogle.com/)
 
 ## Overview
-A high-fidelity symbolic beam analysis engine designed for GSoC 2026. This prototype implements a **"Smart Dispatcher"** integration logic that bridges the gap between SymPy's `SingularityFunction` and complex transcendental loads ($\sin, \cos, \exp, \log$), ensuring exact symbolic results and $C^0$ continuity in Bending Moment Diagrams (BMD).
+A high-fidelity symbolic beam analysis engine designed for GSoC 2026. This prototype implements a **Smart Dispatcher** integration logic that bridges the gap between SymPy's `SingularityFunction` and complex transcendental loads ($\sin, \cos, \exp, \log$), ensuring exact symbolic results and $C^0$ continuity in Bending Moment Diagrams (BMD).
 
 ## Technical Architecture
 
