@@ -22,16 +22,18 @@ graph TD
     PW --> CG["Complexity Guard (Nesting Depth Check)"]
     PW --> FC["Continuity Force (F(x) - F(a) Logic)"]
     
+    Wrapper --> Matrix["Boundary Matrix Assembler (A*C = B)"]
     Wrapper --> Viz["Visualizer (3-Stack Layout)"]
     Viz --> LaTeX["LaTeX Rendering (mathtext)"]
-    Viz --> Disc["Discontinuity Detection (nan jumps)"]
+    Viz --> Disc["Discontinuity-Aware Sampling (Epsilon Limits)"]
 ```
 
 ### Key Features
-- **Smart Dispatcher**: Automatically detects transcendental functions and falls back to a robust Piecewise integration engine.
-- **Symbolic Robustness**: Handles symbolic constants ($L, E, I$) and positions ($kL$) without requiring numerical values.
-- **Physical Validation**: Defensive checks to ensure loads are situated within the beam's physical length.
-- **Visual Excellence**: Professional-grade 3-stack plots with LaTeX labels and vertical jumps at point loads.
+- **Smart Dispatcher**: Automatically detects transcendental functions and falls back to a robust Piecewise integration engine while precisely avoiding `meijerg` expression bloat.
+- **Boundary Parity**: Exact symbolic formulation of global equilibrium boundary matrices ($A \times C = B$) to rigidly enforce piecewise continuity.
+- **Symbolic Robustness**: Handles symbolic constants ($L, E, I$) and positions ($kL$) without requiring numerical dependencies.
+- **Visual Excellence**: Professional-grade 3-stack plots using mathematical left/right epsilon evaluation boundaries for exact vertical jump visualization (no floating charts).
+- **Developer Matrix Mode**: Real-time output of internal condition assembly blocks to verify equation alignment before algebraic LU deployment.
 
 ## Repository Structure
 ```text
