@@ -70,7 +70,7 @@ graph TD
 | **Example 2: Sinusoidal Load** | ![Example 2](docs/gallery/sinusoidal_load.png) |
 | **Example 3: Partial UDL** | ![Example 3](docs/gallery/partial_udl.png) |
 | **Example 4: Combined Loading** | ![Example 4](docs/gallery/combined_loading.png) |
-| **Output**|<img width="2048" height="3052" alt="image" src="https://github.com/user-attachments/assets/31892e32-c2b0-44e7-b1d8-08081845bf55" />|
+| **Output**|<img width="2048" height="5250" alt="image" src="https://github.com/user-attachments/assets/1222051b-45bb-4d0f-9957-e805c87902f9" />|
 
 ---
 *Developed as a prototype for the SymPy community.*
