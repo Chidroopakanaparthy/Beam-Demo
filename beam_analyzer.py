@@ -25,14 +25,16 @@ class CoordinateAmbiguityError(Exception):
 class BeamAnalyzer: 
 
     def _tame_expression(self, expr):
-        """Simplifies expressions: expands, cancels redundant terms, removes bloat."""
+        
         from sympy import nsimplify, cancel
         try:
             return cancel(nsimplify(expr).expand())
         except Exception:
             return expr
+            
 
     def __init__(self, length, elastic_modulus=symbols('E'), second_moment=symbols('I')):
+        
         self.length = sympify(length)
         self.E = sympify(elastic_modulus)
         self.I = sympify(second_moment)
@@ -69,10 +71,6 @@ class BeamAnalyzer:
             pass
         return sympify(pos)
 
-    """
-        Extracts all load boundaries and maps them to contiguous sequential segments.
-        Leverages Assumption-Aware Sorting to establish deterministic integration ranges.
-    """
 
     def _normalize_geometry(self):
         
@@ -128,7 +126,7 @@ class BeamAnalyzer:
             sorted_coords = sorted(list(coords), key=lambda x: x.sort_key())
             for i in range(len(sorted_coords) - 1):
                 a, b = sorted_coords[i], sorted_coords[i+1]
-                cmp_coords(a, b) # this will raise if still undecidable
+                cmp_coords(a, b)
                 
         self.junctions = sorted_coords
         self.segments = [(sorted_coords[i], sorted_coords[i+1]) for i in range(len(sorted_coords)-1)]
@@ -252,18 +250,15 @@ class BeamAnalyzer:
         n = len(self.segments)
         C = symbols(f'C1:{2*n + 1}')  # C1 to C_2n
         
-        # M(x) is globally known from the transformer
         M_expr = self.get_bending_moment()
 
         EI = self.E * self.I
-        # Safe symbolic integration using sympy
         theta_base = integrate(M_expr, self.x) / EI
         y_base = integrate(theta_base, self.x)
 
         theta_branches = []
         y_branches = []
         
-        # Build piecewise branches with unique constants
         for i, (seg_start, seg_end) in enumerate(self.segments):
             c_slope = C[2*i]
             c_defl = C[2*i + 1]
@@ -306,12 +301,10 @@ class BeamAnalyzer:
             # Fallback if no supports (unlikely for solvable beams)
             sol_dict = {c: 0 for c in C}
         else:
-            # Solve system
             A, B = linear_eq_to_matrix(equations, C)
             from sympy import nsimplify
             B = B.applyfunc(lambda element: nsimplify(element, tolerance=1e-10))
             try:
-                # Maintain symbolic exactness via LUsolve
                 sol_vector = A.LUsolve(B)
                 sol_vector = sol_vector.applyfunc(lambda val: nsimplify(val.expand()))
                 sol_dict = dict(zip(C, sol_vector))
@@ -321,19 +314,19 @@ class BeamAnalyzer:
             
             self.sys_matrices = (A, B)
 
-        # Plug back into Beam object
         final_theta = piecewise_theta.subs(sol_dict).rewrite(Piecewise)
         final_y = piecewise_y.subs(sol_dict).rewrite(Piecewise)
 
-        # Upgrade engine without breaking dashboard
         self.beam.shear_force = lambda **kwargs: _safe_simplify(piecewise_fold(self.get_shear_force().rewrite(Piecewise)))
         self.beam.bending_moment = lambda **kwargs: _safe_simplify(piecewise_fold(self.get_bending_moment().rewrite(Piecewise)))
         self.beam.slope = lambda **kwargs: final_theta
         self.beam.deflection = lambda **kwargs: final_y
         return True
 
+    #Developer Mode: Print the state of boundary condition assembly.
+
     def print_matrix_state(self):
-        """Developer Mode: Print the state of boundary condition assembly."""
+        
         A, B = self.sys_matrices
         if A is None or B is None:
             print("[DevMode] Systems matrices not assembled yet.")
@@ -355,11 +348,8 @@ class BeamAnalyzer:
         
         if not self._solved:
             self.solve_reactions()
-        # DO NOT force Piecewise rewrite here. Let dispatch_integration handle 
-        # the SingularityFunction accumulation boundaries inherently.
         self.load_expression = self.beam.load.subs(self.reactions)
         shear = -dispatch_integration(self.load_expression, self.x)
-        # Avoid simplifying intermediate integrations to preserve Add structure
         return shear
 
     #M(x) = integral(V(x)) using the Smart Dispatcher.
@@ -368,7 +358,6 @@ class BeamAnalyzer:
         
         sf = self.get_shear_force()
         moment = dispatch_integration(sf, self.x)
-        # Avoid simplifying intermediate integrations to preserve Add structure
         return moment
 
     #Returns the combined load expression for plotting.
