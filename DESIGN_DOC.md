@@ -21,7 +21,7 @@ We enforce this by explicitly calculating the definite integral over each interv
 $$F_{new}(x) = F(x) - F(a)$$
 This ensures that the Shear Force starts at the correct value for each distributed load segment and that the Bending Moment remains continuous even for complex loads.
 
-### 3. Visual Excellence Module (`visualizer.py`)
+### 3. Visual Module (`visualizer.py`)
 
 Professional engineering plots require more than just `plt.plot()`. Our `BeamVisualizer` implements:
 
