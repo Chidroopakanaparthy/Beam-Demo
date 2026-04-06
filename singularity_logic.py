@@ -23,9 +23,7 @@ def _has_transcendental_of(expr, var):
     return False
 
 
-
 #SymPy's simplify() can crash with 'Invalid NaN comparison' on mixed
-#SingularityFunction + Piecewise expressions. This wrapper catches that.
 
 def _safe_simplify(expr):
     
@@ -56,7 +54,7 @@ def dispatch_integration(f, x):
     if isinstance(f, SingularityFunction):
         base, a, n = f.args
         if n < 0:
-            # Point load/moment: <x-a>^n -> <x-a>^{n+1} (no divisor)
+            # Point load/moment: <x-a>^n -> <x-a>^{n+1} 
             return SingularityFunction(base, a, n + 1)
         else:
             # Polynomial distributed: <x-a>^n -> <x-a>^{n+1} / (n+1)
@@ -79,18 +77,18 @@ def dispatch_integration(f, x):
             base, boundary, n = sf.args
             q_x = Mul(*other_parts) if other_parts else S.One
 
-            # First-class citizen: point loads/moments NEVER go to Piecewise.
+            # point loads/moments NEVER go to Piecewise.
             # Reaction coefficients may contain exp(5), cos(3) etc. as constants,
             # which must not trigger the transcendental fallback.
             if n < 0:
                 return q_x * SingularityFunction(base, boundary, n + 1)
 
-            # For n >= 0 (distributed loads): use Piecewise fallback
+            # For n >= 0 (distributed loads): using Piecewise fallback
             res_pw = convert_to_piecewise_integral(f, x, boundary)
             if res_pw is not None:
                 return _safe_simplify(res_pw)
 
-    # --- Global fallback: DiracDelta rewrite (standard SymPy path) ---
+    # --- Global fallback: DiracDelta rewrite (standard path) ---
     try:
         expr_rw = f.rewrite(DiracDelta)
         res = integrate(expr_rw, x)
