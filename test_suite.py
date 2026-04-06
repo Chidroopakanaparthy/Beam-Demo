@@ -95,7 +95,7 @@ def test_boundary_singularities():
     assert float(moment.subs(x, 10).evalf()) == pytest.approx(0, abs=1e-6)
 
 
-# ── Defensive Programming: Physical Validation ────────────────────────────
+# ── Physical Validation ────────────────────────────
 
 #A point load placed beyond the beam length must be clipped to L
 #and produce a UserWarning.
@@ -110,7 +110,7 @@ def test_physical_validation_clipping():
     assert last_pos == 10
 
 
-# ── Visual Excellence: Gallery Export ──────────────────────────────────────
+# ── Gallery Export ──────────────────────────────────────
 
 # Verify that the 3-stack plot is saved to docs/gallery/.
 
