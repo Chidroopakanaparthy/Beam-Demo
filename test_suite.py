@@ -6,7 +6,6 @@ import os
 
 
 # ── Regression: Standard Polynomial Loads ──────────────────────────────────
-
  
 #Uniform distributed load on a simply-supported beam.
 #Known closed-form: R_0 = R_L = qL/2, M_max = qL^2/8.
@@ -71,7 +70,7 @@ def test_symbolic_boundaries():
     assert simplify(r0 - (1 - k) * P) == 0
 
 
-# ── Edge-Case Stress Testing: Boundary Stability ───────────────────────────
+# ── Edge-Case Stress Testing for Boundary Stability ───────────────────────────
 
 #Test Case A: Apply a point load (n=-1) at exactly x=0 and verify 
 #             reaction forces are calculated without ZeroDivisionError.
@@ -97,8 +96,7 @@ def test_boundary_singularities():
 
 # ── Physical Validation ────────────────────────────
 
-#A point load placed beyond the beam length must be clipped to L
-#and produce a UserWarning.
+#A point load placed beyond the beam length must be clipped to L and produce a UserWarning.
 
 def test_physical_validation_clipping():
 
@@ -111,8 +109,6 @@ def test_physical_validation_clipping():
 
 
 # ── Gallery Export ──────────────────────────────────────
-
-# Verify that the 3-stack plot is saved to docs/gallery/.
 
 def test_gallery_export():
    
@@ -150,8 +146,7 @@ def test_matrix_stability():
     assert not slope_expr.subs(x, 3).has(S.NaN)
     assert not slope_expr.subs(x, 7).has(S.NaN)
 
-#Verify that a symbolic load at L/2 integrates and maps correctly.
-
+#Verifying that a symbolic load at L/2 integrates and maps correctly.
 def test_symbolic_placement():
     
     L, k = symbols('L k', positive=True)
