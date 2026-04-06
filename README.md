@@ -40,7 +40,7 @@ graph TD
 .
 ├── beam_analyzer.py      # Engineering Wrapper & Support Solver
 ├── singularity_logic.py  # Math Engine (The Smart Dispatcher)
-├── visualizer.py         # Visual Excellence Module (Plotting)
+├── visualizer.py         # Visual Module 
 ├── test_suite.py         # Pytest regression & stress tests
 ├── main.py               # Main demo script
 ├── DESIGN_DOC.md         # Detailed architectural documentation
