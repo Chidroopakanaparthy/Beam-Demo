@@ -19,7 +19,6 @@ def get_piecewise_integral(expr, x, a):
         pass
     return F
 
-# Recursively counts total branches in a Piecewise expression.
 
 def _count_piecewise_args(expr):
     
