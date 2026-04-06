@@ -11,14 +11,13 @@ try:
 except Exception:
     plt.style.use('ggplot')
 
-# LaTeX: use Matplotlib's internal mathtext parser (no TeX Live required)
 plt.rc('text', usetex=False)
 plt.rc('font', family='serif')
 
 
 class BeamVisualizer:
     """
-    Visual Excellence Module for Beam Analysis.
+    Visual Module for Beam Analysis.
 
     - Detects Piecewise boundaries and inserts NaN at discontinuities
       to prevent 'slanted lines' in SFD plots.
@@ -30,9 +29,10 @@ class BeamVisualizer:
         self.analyzer = analyzer
         self.x_sym = analyzer.x
         self.L = float(analyzer.length)
+        
 
     def _prepare_expr(self, expr):
-        """Convert any SingularityFunction atoms to Piecewise for numeric eval."""
+        
         if expr.has(SingularityFunction):
             try:
                 expr = piecewise_fold(expr.rewrite(Piecewise))
@@ -40,6 +40,7 @@ class BeamVisualizer:
                 pass
         return expr
 
+    
     def _extract_critical_points(self, expr):
         """
         Find all boundary points where Piecewise conditions change.
@@ -66,12 +67,10 @@ class BeamVisualizer:
                 pass
 
         return sorted(points)
+        
 
     def _get_plot_data(self, expr, num_points=1000):
-        """
-        Generates (x, y) arrays for plotting, inserting NaN at discontinuities
-        to prevent matplotlib from drawing slanted lines across jumps.
-        """
+        
         expr = self._prepare_expr(expr)
         sorted_points = self._extract_critical_points(expr)
 
@@ -87,8 +86,6 @@ class BeamVisualizer:
             p_end = sorted_points[i + 1]
             n_seg = max(2, int(num_points * (p_end - p_start) / self.L))
             
-            # Step offset captures mathematically accurate Right/Left Limits 
-            # without triggering exact symbolic edge collision evaluation
             eps = 1e-9
             seg_x = np.linspace(p_start + eps, p_end - eps, n_seg)
 
@@ -101,13 +98,12 @@ class BeamVisualizer:
             x_final.extend(seg_x)
             y_final.extend(seg_y)
 
-            # Note: We omit internal NaN insertion here to force 
-            # vertical "jumps" to draw correctly across boundaries.
-
         return np.array(x_final), np.array(y_final)
+        
+    #Generates a 3-stack plot: Load, Shear, Moment.
 
     def plot_3stack(self, title="Beam Analysis Results", save_name=None):
-        """Generates a professional 3-stack plot: Load, Shear, Moment."""
+        
         if not self.analyzer._solved:
             self.analyzer.solve_reactions()
 
@@ -115,8 +111,9 @@ class BeamVisualizer:
         shear = self.analyzer.beam.shear_force()
         moment = self.analyzer.beam.bending_moment()
 
+        
         def set_padded_ylim(ax, y_vals):
-            """Ensures boundary jumps aren't cut off by adding a 15% visual pad."""
+        
             valid_y = y_vals[np.isfinite(y_vals)]
             if len(valid_y) == 0:
                 return
